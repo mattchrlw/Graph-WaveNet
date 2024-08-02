@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import time
 import util
+import optuna
 from engine import Trainer
 import os
 from durbango import pickle_save
@@ -14,6 +15,10 @@ from exp_results import summary
 
 
 def main(args, **model_kwargs):
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
     device = torch.device(args.device)
     data = util.load_dataset(args.data, args.batch_size, args.batch_size, args.batch_size, n_obs=args.n_obs, fill_zeroes=args.fill_zeroes)
     scaler = data['scaler']
@@ -68,6 +73,8 @@ def main(args, **model_kwargs):
     test_met_df.round(6).to_csv(os.path.join(args.save, 'test_metrics.csv'))
     print(summary(args.save))
 
+    return m.valid_loss
+
 def eval_(ds, device, engine):
     """Run validation."""
     valid_loss = []
@@ -84,7 +91,6 @@ def eval_(ds, device, engine):
     total_time = time.time() - s1
     return total_time, valid_loss, valid_mape, valid_rmse
 
-
 if __name__ == "__main__":
     parser = util.get_shared_arg_parser()
     parser.add_argument('--epochs', type=int, default=100, help='')
@@ -95,13 +101,29 @@ if __name__ == "__main__":
     parser.add_argument('--save', type=str, default='experiment', help='save path')
     parser.add_argument('--n_iters', default=None, help='quit after this many iterations')
     parser.add_argument('--es_patience', type=int, default=20, help='quit if no improvement after this many iterations')
+    parser.add_argument('--seed', type=int, default=None, help='seed for randomisation')
 
     args = parser.parse_args()
     t1 = time.time()
     if not os.path.exists(args.save):
         os.mkdir(args.save)
     pickle_save(args, f'{args.save}/args.pkl')
-    main(args)
+
+    def objective(trial):
+        # params to optimise:
+        # clip: 1..5
+        # weight_decay: 0.0001..0.01
+        # learning_rate: 0.0001..0.1
+        # lr_decay_rate: 0.8..0.99
+        args.clip = trial.suggest_int('clip', 1, 5)
+        args.weight_decay = trial.suggest_float('weight_decay', 0.0001, 0.01)
+        args.learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01)
+        args.lr_decay_rate = trial.suggest_float('lr_decay_rate', 0.8, 0.99)
+        main(args)
+
+    study = optuna.create_study(direction='minimize')
+    study.optimize(objective, n_trials=20)
+
     t2 = time.time()
     mins = (t2 - t1) / 60
     print(f"Total time spent: {mins:.2f} seconds")
