@@ -15,6 +15,9 @@ from exp_results import summary
 
 
 def main(args, **model_kwargs):
+    print("Starting main")
+    print(args)
+
     if args.seed is not None:
         torch.manual_seed(args.seed)
         torch.cuda.manual_seed(args.seed)
@@ -65,7 +68,7 @@ def main(args, **model_kwargs):
             epochs_since_best_mae += 1
         met_df = pd.DataFrame(metrics)
         mb.comment = f'best val_loss: {met_df.valid_loss.min(): .3f}, current val_loss: {m.valid_loss:.3f}, current train loss: {m.train_loss: .3f}'
-        met_df.round(6).to_csv(f'{args.save}/metrics.csv')
+        met_df.round(6).to_csv(f'{args.save}/metrics-{args.clip}-{args-weight_decay}-{args.learning_rate}-{args.lr_decay_rate}.csv')
         if epochs_since_best_mae >= args.es_patience: break
     # Metrics on test data
     engine.model.load_state_dict(torch.load(best_model_save_path))
@@ -124,6 +127,23 @@ if __name__ == "__main__":
 
     study = optuna.create_study(direction='minimize')
     study.optimize(objective, n_trials=20)
+
+    pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
+    complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
+
+    print("Study statistics: ")
+    print("  Number of finished trials: ", len(study.trials))
+    print("  Number of pruned trials: ", len(pruned_trials))
+    print("  Number of complete trials: ", len(complete_trials))
+
+    print("Best trial:")
+    trial = study.best_trial
+
+    print("  Value: ", trial.value)
+
+    print("  Params: ")
+    for key, value in trial.params.items():
+        print("    {}: {}".format(key, value))
 
     t2 = time.time()
     mins = (t2 - t1) / 60
