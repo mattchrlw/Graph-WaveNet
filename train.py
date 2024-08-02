@@ -68,7 +68,7 @@ def main(args, **model_kwargs):
             epochs_since_best_mae += 1
         met_df = pd.DataFrame(metrics)
         mb.comment = f'best val_loss: {met_df.valid_loss.min(): .3f}, current val_loss: {m.valid_loss:.3f}, current train loss: {m.train_loss: .3f}'
-        met_df.round(6).to_csv(f'{args.save}/metrics-{args.clip}-{args-weight_decay}-{args.learning_rate}-{args.lr_decay_rate}.csv')
+        met_df.round(6).to_csv(f'{args.save}/metrics-{args.clip}-{args.weight_decay}-{args.learning_rate}-{args.lr_decay_rate}.csv')
         if epochs_since_best_mae >= args.es_patience: break
     # Metrics on test data
     engine.model.load_state_dict(torch.load(best_model_save_path))
