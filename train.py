@@ -106,6 +106,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_iters', default=None, help='quit after this many iterations')
     parser.add_argument('--es_patience', type=int, default=20, help='quit if no improvement after this many iterations')
     parser.add_argument('--seed', type=int, default=None, help='seed for randomisation')
+    parser.add_argument('--optuna', type=bool, default=False, help='whether to do an optuna search')
 
     args = parser.parse_args()
     t1 = time.time()
@@ -113,37 +114,40 @@ if __name__ == "__main__":
         os.mkdir(args.save)
     pickle_save(args, f'{args.save}/args.pkl')
 
-    def objective(trial):
-        # params to optimise:
-        # clip: 1..5
-        # weight_decay: 0.0001..0.01
-        # learning_rate: 0.0001..0.1
-        # lr_decay_rate: 0.8..0.99
-        args.clip = trial.suggest_int('clip', 1, 5)
-        args.weight_decay = trial.suggest_float('weight_decay', 0.0001, 0.01)
-        args.learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01)
-        args.lr_decay_rate = trial.suggest_float('lr_decay_rate', 0.8, 0.99)
-        main(args)
+    if args.optuna == True:
+        def objective(trial):
+            # params to optimise:
+            # clip: 1..5
+            # weight_decay: 0.0001..0.01
+            # learning_rate: 0.0001..0.1
+            # lr_decay_rate: 0.8..0.99
+            args.clip = trial.suggest_int('clip', 1, 5)
+            args.weight_decay = trial.suggest_float('weight_decay', 0.0001, 0.01)
+            args.learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01)
+            args.lr_decay_rate = trial.suggest_float('lr_decay_rate', 0.8, 0.99)
+            main(args)
 
-    study = optuna.create_study(direction='minimize')
-    study.optimize(objective, n_trials=20)
+        study = optuna.create_study(direction='minimize')
+        study.optimize(objective, n_trials=20)
 
-    pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
-    complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
+        pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
+        complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
 
-    print("Study statistics: ")
-    print("  Number of finished trials: ", len(study.trials))
-    print("  Number of pruned trials: ", len(pruned_trials))
-    print("  Number of complete trials: ", len(complete_trials))
+        print("Study statistics: ")
+        print("  Number of finished trials: ", len(study.trials))
+        print("  Number of pruned trials: ", len(pruned_trials))
+        print("  Number of complete trials: ", len(complete_trials))
 
-    print("Best trial:")
-    trial = study.best_trial
+        print("Best trial:")
+        trial = study.best_trial
 
-    print("  Value: ", trial.value)
+        print("  Value: ", trial.value)
 
-    print("  Params: ")
-    for key, value in trial.params.items():
-        print("    {}: {}".format(key, value))
+        print("  Params: ")
+        for key, value in trial.params.items():
+            print("    {}: {}".format(key, value))
+    else:
+        main(args)    
 
     t2 = time.time()
     mins = (t2 - t1) / 60
