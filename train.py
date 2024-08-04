@@ -121,7 +121,7 @@ if __name__ == "__main__":
             # weight_decay: 0.0001..0.01
             # learning_rate: 0.0001..0.1
             # lr_decay_rate: 0.8..0.99
-            args.clip = trial.suggest_int('clip', 1, 5)
+            # args.clip = trial.suggest_int('clip', 1, 5)
             args.weight_decay = trial.suggest_float('weight_decay', 0.0001, 0.01)
             args.learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01)
             args.lr_decay_rate = trial.suggest_float('lr_decay_rate', 0.8, 0.99)
